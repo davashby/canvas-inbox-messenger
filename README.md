@@ -2,7 +2,7 @@
 
 Download the [macOS and Windows packages from Releases](https://github.com/davashby/canvas-inbox-messenger/releases). Both packages include the shared plugin source and setup scripts for both platforms. Follow the setup section for your operating system below.
 
-Version 0.3.0 supports Windows and macOS with Node.js 22 or newer. This is a local desktop plugin for BYU-Idaho Canvas (`https://byui.instructure.com`). It requires a local execution environment; it is not a hosted web/mobile connection. No credentials or student data are included in this package.
+Version 0.4.0 supports Windows and macOS with Node.js 22 or newer. This is a local desktop plugin for BYU-Idaho Canvas (`https://byui.instructure.com`). It requires a local execution environment; it is not a hosted web/mobile connection. No credentials or student data are included in this package.
 
 The workflow has five stages:
 
@@ -72,6 +72,16 @@ Saved course scope is located at:
 - Windows: `%APPDATA%\Canvas Inbox Messenger\course-scope.json`
 - macOS: `~/Library/Application Support/Canvas Inbox Messenger/course-scope.json`
 
+## Course links in messages
+
+During drafting, ask for a course item in ordinary language, for example: “Include links to the Week 3 study guide and the practice quiz.” The assistant searches the selected course's published pages, assignments, quizzes, and discussions, clarifies ambiguous matches, then includes the chosen links in your final message preview. New Quizzes are found through Canvas assignment links.
+
+Messages contain readable titles followed by full Canvas browser URLs. The Conversations API does not guarantee HTML or Markdown link formatting. The URLs can appear within a sentence or in an appended “Course links” section. Each course's message resolves its own items, so students receive that course's URLs. The recipient-list approval and final send approval still apply; changing links creates a new message preview.
+
+The new `list_course_links` tool accepts `course_id`, optional `types` (`page`, `assignment`, `quiz`, `discussion`), optional title/ID `search`, and pagination. `preview_message.course_links` accepts up to 20 references with a unique `key`, returned `type` and `id`, and optional `label`. Pages use their returned URL slug as `id`. A body placeholder such as `{{link:study_guide}}` places that link; links without placeholders are appended. The server verifies item publication and the destination's course before previewing. Student access can still depend on unlock dates, prerequisites, and differentiated assignments.
+
+Reading links additionally requires Canvas API permissions to read course pages, assignments, quizzes, and discussion topics. If an endpoint is unavailable, the tool reports that category rather than silently treating it as empty. References: [Pages](https://developerdocs.instructure.com/services/canvas/resources/pages), [Assignments](https://developerdocs.instructure.com/services/canvas/resources/assignments), [Quizzes](https://developerdocs.instructure.com/services/canvas/resources/quizzes), [Discussions](https://developerdocs.instructure.com/services/canvas/resources/discussion_topics), [Conversations](https://developerdocs.instructure.com/services/canvas/resources/conversations).
+
 ## Conditions and permissions
 
 Course grades use current or final percentage. Assignment grades use posted, non-excused score divided by possible points; unposted or ungraded submissions are excluded. Activity uses enrollment `last_activity_at`, which records course activity rather than a verified login. Relative periods use `inactive_for_days`; calendar boundaries use `inactive_since` with an ISO timestamp including timezone. The assistant clarifies ambiguous periods and whether never-active students should be included. Grade and activity rules can be combined with all or any.
@@ -83,7 +93,7 @@ The token must permit listing courses, assignments, enrollments, and assignment 
 Run the automated checks from the plugin folder on either platform:
 
 ```text
-node --test server/canvas.test.mjs server/course-scope.test.mjs server/workflow.test.mjs server/platform.test.mjs
+node --test server/canvas.test.mjs server/course-scope.test.mjs server/workflow.test.mjs server/platform.test.mjs server/course-links.test.mjs
 ```
 
 If tools are missing, check `codex mcp get canvas-inbox`, confirm the displayed paths still exist, and restart the app in Local mode. If Node is missing, reinstall Node with PATH enabled or rerun registration using the resolved absolute Node path. If startup reports missing credentials, rerun the platform's token setup under the same operating-system account as the desktop app. Never paste the token into chat or put it in `mcp.json`.

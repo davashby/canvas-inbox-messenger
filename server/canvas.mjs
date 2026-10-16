@@ -55,15 +55,29 @@ function firstName(user) {
   return source.split(/\s+/)[0] || 'there';
 }
 
-export function renderMessage(template, user) {
+export function renderMessage(template, user, links = []) {
   if (typeof template !== 'string' || !template.trim()) throw new Error('body_template is required');
   if (template.length > 10000) throw new Error('body_template is too long');
   const full = (user.name || user.short_name || '').trim() || firstName(user);
   const first = firstName(user);
   const personalized = /\{\{(?:first_name|full_name)\}\}/.test(template);
-  const rendered = template.replaceAll('{{first_name}}', first).replaceAll('{{full_name}}', full).trim();
-  if (/\{\{[^}]+\}\}/.test(rendered)) throw new Error('Unsupported message placeholder');
-  return personalized ? rendered : `Hi ${first},\n\n${rendered}`;
+  const linkMap = new Map(links.map(link => [link.key, link]));
+  const used = new Set();
+  for (const match of template.matchAll(/\{\{([^}]+)\}\}/g)) {
+    if (!['first_name', 'full_name'].includes(match[1]) && !(match[1].startsWith('link:') && linkMap.has(match[1].slice(5)))) throw new Error('Unsupported or unresolved message placeholder');
+  }
+  const rendered = template.replace(/\{\{(first_name|full_name|link:[^}]+)\}\}/g, (_, key) => {
+    if (key === 'first_name') return first;
+    if (key === 'full_name') return full;
+    const link = linkMap.get(key.slice(5));
+    used.add(link.key);
+    return `${link.label}: ${link.url}`;
+  }).trim();
+  const remaining = links.filter(link => !used.has(link.key));
+  const appendix = remaining.length ? `\n\nCourse links:\n${remaining.map(link => `${link.label}: ${link.url}`).join('\n')}` : '';
+  const body = (personalized ? rendered : `Hi ${first},\n\n${rendered}`) + appendix;
+  if (body.length > 10000) throw new Error('Personalized message with course links is too long');
+  return body;
 }
 
 export class CanvasClient {

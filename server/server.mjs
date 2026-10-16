@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { CanvasClient, renderMessage, id } from './canvas.mjs';
 import { CourseScope } from './course-scope.mjs';
 import { dataDirectory } from './platform.mjs';
+import { listCourseLinks, resolveCourseLinks } from './course-links.mjs';
 
 export function createWorkflow({ client, courseScope }) {
 const previews = new Map();
@@ -46,6 +47,19 @@ const tools = [
     description: 'List published assignments and possible points in a course.',
     inputSchema: {
       type: 'object', properties: { course_id: { type: 'string' } }, required: ['course_id'], additionalProperties: false
+    },
+    annotations: { readOnlyHint: true }
+  },
+  {
+    name: 'list_course_links',
+    description: 'Find published pages, assignments, quizzes, and discussions in a teacher-selected course to link in an Inbox message. Search by title or ID. Return browser URLs, types, IDs, and availability dates. New Quizzes are returned as assignment references. Use these exact references in preview_message.course_links; resolve ambiguous titles with the teacher.',
+    inputSchema: {
+      type: 'object', properties: {
+        course_id: { type: 'string' },
+        types: { type: 'array', minItems: 1, items: { type: 'string', enum: ['page', 'assignment', 'quiz', 'discussion'] } },
+        search: { type: 'string', maxLength: 255 },
+        offset: { type: 'integer', minimum: 0 }, limit: { type: 'integer', minimum: 1, maximum: 100 }
+      }, required: ['course_id'], additionalProperties: false
     },
     annotations: { readOnlyHint: true }
   },
@@ -113,7 +127,18 @@ const tools = [
       type: 'object', properties: {
         recipient_list_id: { type: 'string' },
         subject: { type: 'string', description: 'Canvas Inbox subject, at most 255 characters.' },
-        body_template: { type: 'string', description: 'Use {{first_name}} or {{full_name}}. A personal greeting is added if neither is present.' }
+        body_template: { type: 'string', description: 'Use {{first_name}} or {{full_name}} for the greeting. Optional {{link:key}} inserts a selected course link; other selected links are appended with labels and full URLs.' },
+        course_links: {
+          type: 'array', maxItems: 20, description: 'Optional references chosen from list_course_links for this audience course. The server resolves and checks them before rendering.',
+          items: {
+            type: 'object', properties: {
+              key: { type: 'string', pattern: '^[a-z][a-z0-9_]{0,39}$', description: 'Unique key used in {{link:key}}.' },
+              type: { type: 'string', enum: ['page', 'assignment', 'quiz', 'discussion'] },
+              id: { type: 'string', description: 'Exact item ID from list_course_links; pages use their URL slug, not page_id.' },
+              label: { type: 'string', minLength: 1, maxLength: 255, description: 'Optional display label; defaults to the Canvas item title.' }
+            }, required: ['key', 'type', 'id'], additionalProperties: false
+          }
+        }
       }, required: ['recipient_list_id', 'subject', 'body_template'], additionalProperties: false
     },
     annotations: { readOnlyHint: true }
@@ -193,6 +218,10 @@ async function callTool(name, args) {
     await courseScope.assertAllowed(args.course_id);
     return { assignments: await client.listAssignments(args.course_id) };
   }
+  if (name === 'list_course_links') {
+    await courseScope.assertAllowed(args.course_id);
+    return listCourseLinks(client, args.course_id, args);
+  }
   if (name === 'preview_recipients') {
     const courseId = id(args.course_id, 'course_id');
     const allowedCourse = await courseScope.assertAllowed(courseId);
@@ -217,8 +246,9 @@ async function callTool(name, args) {
     const subject = String(args.subject || '').trim();
     if (!subject || subject.length > 255) throw new Error('subject must be 1 to 255 characters');
     const selection = list.selection;
+    const courseLinks = await resolveCourseLinks(client, courseId, args.course_links);
     const recipientMessages = selection.recipients.map(recipient => ({
-      ...recipient, body: renderMessage(args.body_template, recipient.user)
+      ...recipient, body: renderMessage(args.body_template, recipient.user, courseLinks)
     }));
     const previewId = randomUUID();
     const confirmation = `SEND ${recipientMessages.length} TO COURSE ${courseId} PREVIEW ${previewId}`;
@@ -240,6 +270,7 @@ async function callTool(name, args) {
       course_name: allowedCourse.name,
       criteria: selection.criteria,
       assignment_name: selection.assignment_name,
+      course_links: courseLinks,
       evaluated_active_students: selection.evaluated,
       selected_count: recipientMessages.length,
       excluded_data_counts: selection.exclusions,
@@ -311,7 +342,7 @@ async function handle(message, workflow) {
     if (method === 'initialize') {
       return { jsonrpc: '2.0', id: requestId, result: {
         protocolVersion: params.protocolVersion || '2025-03-26', capabilities: { tools: { listChanged: false } },
-        serverInfo: { name: 'canvas-inbox', version: '0.3.0' }
+        serverInfo: { name: 'canvas-inbox', version: '0.4.0' }
       } };
     }
     if (method === 'ping') return { jsonrpc: '2.0', id: requestId, result: {} };

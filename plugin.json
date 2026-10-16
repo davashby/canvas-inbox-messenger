@@ -1,7 +1,7 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "canvas-inbox-plugin",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Preview and send personalized Canvas Inbox messages to students in teacher-selected live courses, based on grade or course activity.",
   "author": { "name": "Canvas instructor" },
   "extensions": {
