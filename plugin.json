@@ -1,0 +1,21 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "canvas-inbox-plugin",
+  "version": "0.3.0",
+  "description": "Preview and send personalized Canvas Inbox messages to students in teacher-selected live courses, based on grade or course activity.",
+  "author": { "name": "Canvas instructor" },
+  "extensions": {
+    "com.openai": {
+      "requires_local_executor": true,
+      "interface": {
+        "displayName": "Canvas Inbox Messenger",
+        "shortDescription": "Personalized Canvas messages",
+        "longDescription": "Choose exact live course codes, select students by Canvas grade or recent course activity, review each message, and send separate Inbox conversations as the instructor.",
+        "developerName": "Canvas instructor",
+        "category": "Education",
+        "capabilities": ["Interactive"],
+        "defaultPrompt": "Show my active Canvas courses, then guide me through conditions, student approval, message drafting, and send approval."
+      }
+    }
+  }
+}

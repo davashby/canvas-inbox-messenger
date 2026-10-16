@@ -1,0 +1,15 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json",
+  "mcpServers": {
+    "canvas-inbox": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["${PLUGIN_ROOT}/scripts/start.mjs"],
+      "cwd": "${PLUGIN_ROOT}"
+    },
+    "instructure-developer-documentation-portal": {
+      "type": "streamable-http",
+      "url": "https://developerdocs.instructure.com/~gitbook/mcp"
+    }
+  }
+}

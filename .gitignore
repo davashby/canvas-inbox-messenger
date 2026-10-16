@@ -1,0 +1,10 @@
+.DS_Store
+Thumbs.db
+node_modules/
+.env
+.env.*
+*.dpapi
+course-scope.json
+*.log
+*.zip
+.local-marketplace/
