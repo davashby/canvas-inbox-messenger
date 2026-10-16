@@ -1,5 +1,7 @@
 # Canvas Inbox Messenger
 
+Download the [macOS and Windows packages from Releases](https://github.com/davashby/canvas-inbox-messenger/releases). Both packages include the shared plugin source and setup scripts for both platforms. Follow the setup section for your operating system below.
+
 Version 0.3.0 supports Windows and macOS with Node.js 22 or newer. This is a local desktop plugin for BYU-Idaho Canvas (`https://byui.instructure.com`). It requires a local execution environment; it is not a hosted web/mobile connection. No credentials or student data are included in this package.
 
 The workflow has five stages:
