@@ -1,0 +1,12 @@
+{
+  "name": "canvas-inbox-github",
+  "interface": { "displayName": "Canvas Inbox Messenger" },
+  "plugins": [
+    {
+      "name": "canvas-inbox-plugin",
+      "source": { "source": "local", "path": "./" },
+      "policy": { "installation": "AVAILABLE", "authentication": "ON_INSTALL" },
+      "category": "Education"
+    }
+  ]
+}

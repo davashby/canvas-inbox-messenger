@@ -14,6 +14,40 @@ The workflow has five stages:
 
 The teacher's own Canvas account sends a separate private Inbox conversation to each student. The Instructure documentation MCP provides API reference only; this plugin's Canvas API server supplies live data and messaging.
 
+## Install from the GitHub marketplace
+
+The repository includes a marketplace catalog at `.agents/plugins/marketplace.json`. The plugin itself lives at the repository root; no subfolder is required.
+
+Use these settings when adding a Git marketplace in the desktop app:
+
+| Setting | Value |
+| --- | --- |
+| Repository URL | `https://github.com/davashby/canvas-inbox-messenger.git` |
+| Git ref / branch | `main` |
+| Sparse path | `.` |
+| Marketplace name | `canvas-inbox-github` |
+| Plugin | `canvas-inbox-plugin` (Canvas Inbox Messenger) |
+
+The sparse path is a single period, meaning the repository root and all its contents. If the field is optional, leave it blank to fetch the complete repository instead. Do not use only `.agents/plugins` as the sparse path: the catalog needs the plugin's `scripts/`, `server/`, and `skills/` folders too.
+
+Equivalent CLI commands on Windows or macOS:
+
+```text
+codex plugin marketplace add https://github.com/davashby/canvas-inbox-messenger.git --ref main --sparse .
+codex plugin add canvas-inbox-plugin@canvas-inbox-github
+```
+
+Install Node.js 22+ and set up your own Canvas token using the Windows or macOS instructions below. For a marketplace installation, run only the token-setup command from an extracted ZIP or repository checkout; skip the separate ZIP marketplace registration commands. Installing from the marketplace does not configure your Canvas credentials. Use a Local desktop chat for this plugin.
+
+To refresh this Git-backed marketplace later:
+
+```text
+codex plugin marketplace upgrade canvas-inbox-github
+codex plugin add canvas-inbox-plugin@canvas-inbox-github
+```
+
+The ZIP setup below creates a separate `canvas-inbox-local` marketplace. Use either installation route; there is no need to install both copies.
+
 ## Windows setup
 
 Install Node.js 22 or newer with Node added to PATH, and the Codex CLI/desktop application with local MCP and plugin support. Close and reopen the desktop app after installing Node. Windows PowerShell 5.1, included with Windows, handles token storage; no PowerShell modules are required.
