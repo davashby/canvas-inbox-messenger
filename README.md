@@ -16,7 +16,7 @@ The teacher's own Canvas account sends a separate private Inbox conversation to 
 
 ## Install from the GitHub marketplace
 
-The repository includes a marketplace catalog at `.agents/plugins/marketplace.json`. The plugin itself lives at the repository root; no subfolder is required.
+The repository includes a marketplace catalog at `.agents/plugins/marketplace.json`. The plugin itself lives at the repository root. The catalog uses a Git-backed plugin source, so the installer fetches the complete plugin separately from the sparse catalog checkout.
 
 Use these settings when adding a Git marketplace in the desktop app:
 
@@ -24,16 +24,16 @@ Use these settings when adding a Git marketplace in the desktop app:
 | --- | --- |
 | Repository URL | `https://github.com/davashby/canvas-inbox-messenger.git` |
 | Git ref / branch | `main` |
-| Sparse path | `.` |
+| Sparse path | `.agents/plugins` |
 | Marketplace name | `canvas-inbox-github` |
 | Plugin | `canvas-inbox-plugin` (Canvas Inbox Messenger) |
 
-The sparse path is a single period, meaning the repository root and all its contents. If the field is optional, leave it blank to fetch the complete repository instead. Do not use only `.agents/plugins` as the sparse path: the catalog needs the plugin's `scripts/`, `server/`, and `skills/` folders too.
+Use `.agents/plugins` as the single sparse path. It includes the marketplace catalog; the catalog's Git-backed source then fetches the full plugin, including `scripts/`, `server/`, and `skills/`. If the sparse field is optional, leaving it blank also works. Do not use `.` as a sparse path: Git's cone-mode sparse checkout can interpret it as root files only and omit the catalog and runtime folders.
 
 Equivalent CLI commands on Windows or macOS:
 
 ```text
-codex plugin marketplace add https://github.com/davashby/canvas-inbox-messenger.git --ref main --sparse .
+codex plugin marketplace add https://github.com/davashby/canvas-inbox-messenger.git --ref main --sparse .agents/plugins
 codex plugin add canvas-inbox-plugin@canvas-inbox-github
 ```
 

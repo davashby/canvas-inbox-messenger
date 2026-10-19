@@ -4,7 +4,11 @@
   "plugins": [
     {
       "name": "canvas-inbox-plugin",
-      "source": { "source": "local", "path": "./" },
+      "source": {
+        "source": "url",
+        "url": "https://github.com/davashby/canvas-inbox-messenger.git",
+        "ref": "main"
+      },
       "policy": { "installation": "AVAILABLE", "authentication": "ON_INSTALL" },
       "category": "Education"
     }
