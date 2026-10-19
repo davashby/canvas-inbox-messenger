@@ -43,6 +43,12 @@ const tools = [
     annotations: { readOnlyHint: true }
   },
   {
+    name: 'list_sections',
+    description: 'List sections in a teacher-selected course by name and ID. Use this to resolve a teacher request to message one or more sections. Pass the chosen IDs in preview_recipients.criteria.section_ids; do not infer section IDs from names or course codes.',
+    inputSchema: { type: 'object', properties: { course_id: { type: 'string' } }, required: ['course_id'], additionalProperties: false },
+    annotations: { readOnlyHint: true }
+  },
+  {
     name: 'list_assignments',
     description: 'List published assignments and possible points in a course.',
     inputSchema: {
@@ -65,7 +71,7 @@ const tools = [
   },
   {
     name: 'preview_recipients',
-    description: 'Find students matching the instructor criteria before drafting any message. Returns a frozen recipient list for one selected course. Present all names and the interpreted criteria, then ask the instructor to approve the list. Does not send or draft a message.',
+    description: 'Preview active students in one selected course or its chosen sections, optionally filtered by grades/activity. Explicitly use audience all_students for everyone in the course or chosen sections; no grade or activity condition is needed. Present all names, course and sections, then obtain audience approval. Does not send.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -73,6 +79,8 @@ const tools = [
         criteria: {
           type: 'object',
           properties: {
+            audience: { type: 'string', enum: ['all_students', 'filtered'], description: 'Explicit all_students selects all active students, optionally restricted by section_ids. filtered (default) requires a grade or activity condition.' },
+            section_ids: { type: 'array', minItems: 1, maxItems: 50, items: { type: 'string' }, description: 'Optional section IDs from list_sections, all within this course. Always limits the audience, even when conditions use combine any.' },
             combine: { type: 'string', enum: ['all', 'any'], description: 'How to combine grade and activity rules. Defaults to all.' },
             grade: {
               type: 'object',
@@ -190,6 +198,7 @@ function recipientPage(list, args) {
     recipient_list_id: list.id, approved: list.approved,
     course_id: list.courseId, course_code: list.course.course_code, course_name: list.course.name,
     criteria: list.selection.criteria, assignment_name: list.selection.assignment_name,
+    selected_sections: list.selection.selected_sections || [],
     evaluated_active_students: list.selection.evaluated,
     excluded_data_counts: list.selection.exclusions,
     total: list.selection.recipients.length,
@@ -217,6 +226,10 @@ async function callTool(name, args) {
   if (name === 'list_assignments') {
     await courseScope.assertAllowed(args.course_id);
     return { assignments: await client.listAssignments(args.course_id) };
+  }
+  if (name === 'list_sections') {
+    await courseScope.assertAllowed(args.course_id);
+    return { course_id: args.course_id, sections: await client.listSections(args.course_id) };
   }
   if (name === 'list_course_links') {
     await courseScope.assertAllowed(args.course_id);
@@ -269,6 +282,7 @@ async function callTool(name, args) {
       course_code: allowedCourse.course_code,
       course_name: allowedCourse.name,
       criteria: selection.criteria,
+      selected_sections: selection.selected_sections || [],
       assignment_name: selection.assignment_name,
       course_links: courseLinks,
       evaluated_active_students: selection.evaluated,
@@ -342,7 +356,7 @@ async function handle(message, workflow) {
     if (method === 'initialize') {
       return { jsonrpc: '2.0', id: requestId, result: {
         protocolVersion: params.protocolVersion || '2025-03-26', capabilities: { tools: { listChanged: false } },
-        serverInfo: { name: 'canvas-inbox', version: '0.4.0' }
+        serverInfo: { name: 'canvas-inbox', version: '0.5.0' }
       } };
     }
     if (method === 'ping') return { jsonrpc: '2.0', id: requestId, result: {} };

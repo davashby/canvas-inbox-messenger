@@ -15,7 +15,15 @@ function percentage(value, label) {
 
 function validateCriteria(criteria) {
   if (!criteria || typeof criteria !== "object" || Array.isArray(criteria)) throw new Error("criteria is required");
-  if (!criteria.grade && !criteria.activity) throw new Error("Add a grade or activity criterion");
+  const audience = criteria.audience ?? 'filtered';
+  if (!['all_students', 'filtered'].includes(audience)) throw new Error('Invalid audience');
+  if (audience === 'filtered' && !criteria.grade && !criteria.activity) throw new Error('Add a grade or activity criterion, or explicitly choose audience all_students');
+  if (audience === 'all_students' && (criteria.grade || criteria.activity)) throw new Error('Use audience filtered when adding grade or activity conditions');
+  let sectionIds;
+  if (criteria.section_ids !== undefined) {
+    if (!Array.isArray(criteria.section_ids) || !criteria.section_ids.length || criteria.section_ids.length > 50) throw new Error('Choose 1 to 50 section IDs');
+    sectionIds = [...new Set(criteria.section_ids.map(value => id(value, 'section_id')))];
+  }
   const combine = criteria.combine ?? "all";
   if (!['all', 'any'].includes(combine)) throw new Error("combine must be all or any");
   if (criteria.grade) {
@@ -40,7 +48,7 @@ function validateCriteria(criteria) {
     }
     if (typeof activity.include_never_active !== 'boolean') throw new Error("activity.include_never_active must be true or false");
   }
-  return { ...criteria, combine };
+  return { ...criteria, audience, combine, ...(sectionIds ? { section_ids: sectionIds } : {}) };
 }
 
 function compare(value, comparison, threshold) {
@@ -169,12 +177,20 @@ export class CanvasClient {
   async selectRecipients(courseId, rawCriteria, now = new Date()) {
     const course = id(courseId, 'course_id');
     const criteria = validateCriteria(rawCriteria);
+    let selectedSections = [];
+    if (criteria.section_ids) {
+      const sections = await this.listSections(course);
+      selectedSections = sections.filter(section => criteria.section_ids.includes(section.id));
+      if (selectedSections.length !== criteria.section_ids.length) throw new Error('Every selected section must belong to the selected course and be accessible to the instructor');
+    }
     const enrollments = await this.all(`/api/v1/courses/${course}/enrollments`, {
       type: ['StudentEnrollment'], state: ['active']
     });
     const byUser = new Map();
     for (const enrollment of enrollments) {
       if (enrollment.type !== 'StudentEnrollment' || enrollment.enrollment_state !== 'active' || !enrollment.user) continue;
+      if (enrollment.course_id !== undefined && String(enrollment.course_id) !== course) continue;
+      if (criteria.section_ids && !criteria.section_ids.includes(String(enrollment.course_section_id))) continue;
       const key = String(enrollment.user_id);
       const prior = byUser.get(key);
       if (!prior || Date.parse(enrollment.last_activity_at || 0) > Date.parse(prior.last_activity_at || 0)) byUser.set(key, enrollment);
@@ -219,11 +235,18 @@ export class CanvasClient {
           ? (criteria.activity.kind === 'inactive_since' ? last < cutoff : last <= cutoff)
           : criteria.activity.include_never_active);
       }
-      const matched = criteria.combine === 'all' ? predicates.every(Boolean) : predicates.some(Boolean);
+      const matched = criteria.audience === 'all_students' || (criteria.combine === 'all' ? predicates.every(Boolean) : predicates.some(Boolean));
       if (matched) recipients.push({ user, grade_percent: gradePercent, last_activity_at: enrollment.last_activity_at || null });
     }
     recipients.sort((a, b) => (a.user.name || '').localeCompare(b.user.name || ''));
-    return { recipients, exclusions, evaluated: byUser.size, assignment_name: assignmentName, criteria };
+    return { recipients, exclusions, evaluated: byUser.size, assignment_name: assignmentName, criteria, selected_sections: selectedSections };
+  }
+
+  async listSections(courseId) {
+    const course = id(courseId, 'course_id');
+    return (await this.all(`/api/v1/courses/${course}/sections`))
+      .filter(section => String(section.course_id) === course)
+      .map(section => ({ id: id(section.id, 'section_id'), course_id: course, name: section.name, start_at: section.start_at || null, end_at: section.end_at || null }));
   }
 
   async sendOne(courseId, recipient, subject, body) {

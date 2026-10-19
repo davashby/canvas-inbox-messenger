@@ -93,3 +93,45 @@ test('course discovery requests active teacher enrollments in available courses'
   assert.equal(url.searchParams.get('enrollment_type'), 'teacher');
   assert.deepEqual(url.searchParams.getAll('state[]'), ['available']);
 });
+
+test('all-students audience includes active students without grades or activity and deduplicates enrollments', async () => {
+  const { client } = mockClient({
+    'GET /api/v1/courses/5/enrollments': [
+      { user_id: '1', type: 'StudentEnrollment', enrollment_state: 'active', course_section_id: '10', user: { name: 'Ada' } },
+      { user_id: '1', type: 'StudentEnrollment', enrollment_state: 'active', course_section_id: '11', user: { name: 'Ada' } },
+      { user_id: '2', type: 'StudentEnrollment', enrollment_state: 'active', user: { name: 'Grace' }, grades: { current_score: null } },
+      { user_id: '3', type: 'StudentEnrollment', enrollment_state: 'inactive', user: { name: 'Inactive' } },
+      { user_id: '4', type: 'TeacherEnrollment', enrollment_state: 'active', user: { name: 'Teacher' } }
+    ]
+  });
+  const result = await client.selectRecipients('5', { audience: 'all_students', combine: 'any' });
+  assert.deepEqual(result.recipients.map(x => x.user.id), ['1', '2']);
+  assert.equal(result.evaluated, 2);
+  assert.deepEqual(result.selected_sections, []);
+  await assert.rejects(client.selectRecipients('5', {}), /explicitly choose/);
+  await assert.rejects(client.selectRecipients('5', { audience: 'all_students', grade: { scope: 'course', comparison: 'below', percent: 60 } }), /filtered/);
+});
+
+test('section audiences verify ownership and filter before deduplication, including with any conditions', async () => {
+  const { client } = mockClient({
+    'GET /api/v1/courses/5/sections': [
+      { id: '10', course_id: '5', name: 'SPAN101-01' },
+      { id: '11', course_id: '5', name: 'SPAN101-02' },
+      { id: '99', course_id: '6', name: 'Other course' }
+    ],
+    'GET /api/v1/courses/5/enrollments': [
+      { user_id: '1', type: 'StudentEnrollment', enrollment_state: 'active', course_section_id: '10', user: { name: 'Ada' }, grades: { current_score: 50 } },
+      { user_id: '1', type: 'StudentEnrollment', enrollment_state: 'active', course_section_id: '11', user: { name: 'Ada' }, grades: { current_score: 90 }, last_activity_at: '2026-10-19T00:00:00Z' },
+      { user_id: '2', type: 'StudentEnrollment', enrollment_state: 'active', course_section_id: '11', user: { name: 'Grace' }, grades: { current_score: 40 } }
+    ]
+  });
+  const result = await client.selectRecipients('5', { audience: 'all_students', section_ids: ['10'] });
+  assert.deepEqual(result.recipients.map(x => x.user.id), ['1']);
+  assert.equal(result.selected_sections[0].name, 'SPAN101-01');
+  const filtered = await client.selectRecipients('5', { section_ids: ['10'], combine: 'any', grade: { scope: 'course', comparison: 'below', percent: 60 } });
+  assert.deepEqual(filtered.recipients.map(x => x.user.id), ['1']);
+  await assert.rejects(client.selectRecipients('5', { audience: 'all_students', section_ids: ['99'] }), /belong/);
+  await assert.rejects(client.selectRecipients('5', { audience: 'all_students', section_ids: [] }), /1 to 50/);
+  const combined = await client.selectRecipients('5', { audience: 'all_students', section_ids: ['10', '11', '10'] });
+  assert.deepEqual(combined.recipients.map(x => x.user.id), ['1', '2']);
+});

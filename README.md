@@ -2,7 +2,7 @@
 
 Download the [macOS and Windows packages from Releases](https://github.com/davashby/canvas-inbox-messenger/releases). Both packages include the shared plugin source and setup scripts for both platforms. Follow the setup section for your operating system below.
 
-Version 0.4.0 supports Windows and macOS with Node.js 22 or newer. This is a local desktop plugin for BYU-Idaho Canvas (`https://byui.instructure.com`). It requires a local execution environment; it is not a hosted web/mobile connection. No credentials or student data are included in this package.
+Version 0.5.0 supports Windows and macOS with Node.js 22 or newer. This is a local desktop plugin for BYU-Idaho Canvas (`https://byui.instructure.com`). It requires a local execution environment; it is not a hosted web/mobile connection. No credentials or student data are included in this package.
 
 The workflow has five stages:
 
@@ -105,6 +105,14 @@ Saved course scope is located at:
 
 - Windows: `%APPDATA%\Canvas Inbox Messenger\course-scope.json`
 - macOS: `~/Library/Application Support/Canvas Inbox Messenger/course-scope.json`
+
+## Message a whole course or section
+
+Say “Message all students in my SPAN101 course” to select everyone with an active student enrollment in that course. No grade or activity condition is required. You still review and approve the student list, draft the message, and approve the final preview before each student receives an individual message.
+
+For a section, say “Message everyone in SPAN101 section 02.” The assistant uses `list_sections` to resolve the section name to its ID. You may choose multiple sections; students enrolled in more than one chosen section are included once per course. Only sections belonging to the selected course can be used. Teachers and inactive/completed student enrollments are excluded. Students without grades or recorded activity are included in an all-students audience.
+
+The internal criteria for the whole course are `{ "audience": "all_students" }`; for chosen sections add `"section_ids": ["123"]`. Grade/activity filters can also be applied within chosen sections with `audience: "filtered"`. Empty criteria do not select everyone automatically. Section selection always limits the audience, including when grade/activity conditions are combined with “any.” Reading sections requires access to [Canvas Sections API](https://developerdocs.instructure.com/services/canvas/resources/sections).
 
 ## Course links in messages
 
